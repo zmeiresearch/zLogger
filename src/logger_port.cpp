@@ -41,7 +41,7 @@
 //  Local data
 //==============================================================================
 static SemaphoreHandle_t    LogSemaphore;
-static char              timeBuffer[32];
+static char                 timeBuffer[32];
 
 //==============================================================================
 //  Local functions
@@ -80,4 +80,9 @@ const char * LogPortGetTime()
 {
     snprintf((char *)timeBuffer, sizeof(timeBuffer), "%09d", PortGetTime());
     return timeBuffer;
+}
+
+__attribute__ ((weak)) const char * LogPortTimeGetString()
+{
+    return "";
 }

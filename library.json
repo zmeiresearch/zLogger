@@ -1,6 +1,6 @@
 {
   "name": "zLogger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Flexible logging library for ESP32 with FreeRTOS support and multiple log sinks",
   "keywords": ["logging", "esp32", "freertos", "embedded", "serial", "debug"],
   "repository": {
@@ -17,14 +17,9 @@
   "license": "MIT",
   "frameworks": ["arduino", "espidf"],
   "platforms": ["espressif32"],
-  "dependencies": [
-    {
-      "name": "zGlobals",
-      "version": "^1.0.0",
-      "authors": ["Zmei Research"],
-      "frameworks": ["*"]
-    }
-  ],
+  "dependencies": {
+    "zmeiresearch/zGlobals": "https://github.com/zmeiresearch/zGlobals.git"
+  },
   "export": {
     "include": [
       "src/*",

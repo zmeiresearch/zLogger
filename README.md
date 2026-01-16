@@ -143,29 +143,21 @@ LogSetLevel(eLogError);  // Only show errors and critical
 
 ### Adding Human-Readable Time
 
-By default, the logger only displays millisecond timestamps from FreeRTOS. You can add human-readable time (e.g., from an RTC or time library) by defining the `LOG_TIME_STRING` macro:
+By default, the logger only displays millisecond timestamps from FreeRTOS. You can add human-readable time (e.g., from an RTC or time library) by overriding the weak function `LogPortTimeGetString()`.
 
-**Option 1: In your code before including logger**
+The library provides a default weak implementation that returns an empty string. You can override it in your application code:
+
+**Example with custom time function:**
 ```c
-// If using a time library that returns a String
-#define LOG_TIME_STRING() Time_GetTimeString().c_str()
-// Or for a function returning const char*
-#define LOG_TIME_STRING() MyGetTimeString()
-
 #include <logger.h>
-```
 
-**Option 2: In platformio.ini**
-```ini
-build_flags =
-    -DLOG_TIME_STRING=Time_GetTimeString().c_str()
-```
-
-**Example with zTime library:**
-```c
-#include <zTime.h>
-#define LOG_TIME_STRING() Time_GetTimeString().c_str()
-#include <logger.h>
+// Override the weak function to provide human-readable time
+const char * LogPortTimeGetString() {
+    static char timeBuffer[32];
+    // Your time formatting code here
+    snprintf(timeBuffer, sizeof(timeBuffer), "2026-01-16T14:30:22");
+    return timeBuffer;
+}
 
 void setup() {
     LogInit(NULL);
@@ -174,7 +166,28 @@ void setup() {
 }
 ```
 
-**Note:** The time string function should return a `const char*` or a type that can be formatted with `%s` in printf. If it returns a temporary object (like Arduino String), use `.c_str()` to convert it.
+**Example with zTime library:**
+```c
+#include <zTime.h>
+#include <logger.h>
+
+// Override the weak function to use zTime
+const char * LogPortTimeGetString() {
+    return Time_GetTimeString().c_str();
+}
+
+void setup() {
+    LogInit(NULL);
+    LOG(eLogInfo, "System started");
+    // Output: 2026-01-16T14:30:22|000012345|I|MyComponent|setup:System started
+}
+```
+
+**Notes:**
+- The function must return `const char*`
+- The returned string must remain valid until the log message is processed
+- Use a static buffer or return a pointer to persistent memory
+- If returning a temporary object (like Arduino String), store it in a static variable or use `.c_str()` carefully
 
 ## Log Format
 
@@ -190,7 +203,7 @@ Example (without custom time):
 000123789|W|MyComponent|loop:Temperature high: 85°C
 ```
 
-Example (with LOG_TIME_STRING defined):
+Example (with `LogPortTimeGetString()` overridden):
 ```
 2026-01-16T14:30:22|000123456|I|MyComponent|setup:System initialized
 2026-01-16T14:30:25|000123789|W|MyComponent|loop:Temperature high: 85°C
@@ -258,6 +271,23 @@ Dumps binary buffer in hex format. Usually called via the `LOG_DUMP_BUFFER()` ma
 LOG_DUMP_BUFFER(level, buffer, size);
 ```
 
+### Custom Time String (Weak Function)
+
+```c
+const char * LogPortTimeGetString();
+```
+
+Weak function that returns a human-readable time string. Override this function in your application to provide custom time formatting. The default implementation returns an empty string.
+
+**Example:**
+```c
+const char * LogPortTimeGetString() {
+    static char buffer[32];
+    snprintf(buffer, sizeof(buffer), "%s", getCurrentTimeString());
+    return buffer;
+}
+```
+
 ## Advanced: Adding Custom Log Sinks
 
 You can extend the logger to write to additional destinations (files, network, displays, etc.).
@@ -303,14 +333,23 @@ Serial.begin(115200);  // Change to your preferred baud rate
 
 ### Custom Time String
 
-Define at compile time to add human-readable timestamps:
+Override the weak `LogPortTimeGetString()` function to add human-readable timestamps:
 ```c
-// In platformio.ini
-build_flags =
-    -DLOG_TIME_STRING=Time_GetTimeString().c_str()
+const char * LogPortTimeGetString() {
+    return Time_GetTimeString().c_str();
+}
 ```
 
-Or define before including logger.h in your code. See "Adding Human-Readable Time" section for details.
+See "Adding Human-Readable Time" section for details and examples.
+
+## Examples
+
+The library includes example sketches demonstrating various features:
+
+- **BasicUsage**: Simple logging with different log levels and buffer dumps
+- **CustomTimeString**: Demonstrates how to override `LogPortTimeGetString()` for custom time formatting
+
+See the `examples/` directory for complete code.
 
 ## Notes
 

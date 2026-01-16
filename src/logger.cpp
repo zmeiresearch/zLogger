@@ -54,14 +54,6 @@
 
 #define LOG_USE_COLOR 1
 
-// Optional human-readable time string macro
-// Override this at compile time to add custom time formatting
-// Example: -DLOG_TIME_STRING=MyTimeFunction()
-// The function should return a const char* or String that can be formatted with %s
-#if !defined(LOG_TIME_STRING)
-#define LOG_TIME_STRING()   ""
-#endif
-
 //==============================================================================
 //  Local types
 //==============================================================================
@@ -203,10 +195,10 @@ eStatus Log(const eLogLevel level, const char * const component, const char * co
                 // first print the time
 #if defined(LOG_USE_COLOR)
                 i = snprintf((char *)&tmpWriteBuf[writePtr], LOG_MAX_LINE_SIZE,
-                        "%s%s|%s|%c|%s|%s:", getColor(level), LOG_TIME_STRING(), LogPortGetTime(), getLevelChar(level), component, function);
+                        "%s%s|%s|%c|%s|%s:", getColor(level), LogPortTimeGetString(), LogPortGetTime(), getLevelChar(level), component, function);
 #else
                 i = snprintf((char *)&tmpWriteBuf[writePtr], LOG_MAX_LINE_SIZE,
-                        "%s|%s|%c|%s|%s:", LOG_TIME_STRING(), LogPortGetTime(), getLevelChar(level), component, function);
+                        "%s|%s|%c|%s|%s:", LogPortTimeGetString(), LogPortGetTime(), getLevelChar(level), component, function);
 #endif  // LOG_USE_COLOR
 
                 if (i < 0)

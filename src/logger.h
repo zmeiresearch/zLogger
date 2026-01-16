@@ -93,6 +93,7 @@ typedef struct _LogSink
 eStatus Log(const eLogLevel level, const char * const component, const char * const function, ...);
 eStatus LogSetLevel(const eLogLevel level);
 eStatus LogDumpBuffer(const eLogLevel level, const char * const component, const char * const function, const uint8_t * const buffer, size_t buffer_size);
+const char * LogPortTimeGetString();    // logger_port contains a __weak implementation, user can override
 
 //==============================================================================
 //  Module generic interface
