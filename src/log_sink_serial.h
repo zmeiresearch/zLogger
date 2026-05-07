@@ -51,9 +51,9 @@ extern "C"
 //==============================================================================
 //  Exported functions
 //==============================================================================
-size_t      LogSinkSerialGetWriteSize();
-size_t      LogSinkSerialWrite(const uint8_t * const buffer, const size_t toSend);
-eStatus     LogSinkSerialInit();
+size_t      LogSinkSerialGetWriteSize(void * context);
+size_t      LogSinkSerialWrite(void * context, const uint8_t * const buffer, const size_t toSend);
+eStatus     LogSinkSerialInit(void * context);
 #ifdef __cplusplus
 }
 #endif // __cplusplus

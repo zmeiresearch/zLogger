@@ -2,13 +2,21 @@
 
 Flexible logging library for ESP32 with FreeRTOS support and multiple log sinks.
 
+## v1.1.0
+
+- Added runtime custom sink registration via `LogRegisterSink()`
+- Added startup sink registration through `LogInitParams`
+- Added `LOG_MAX_SINKS` to control the fixed sink registry size
+- Kept the built-in Serial sink as the default sink
+- Updated the basic example and docs for runtime and startup sink registration
+
 ## Features
 
 - **Multiple Log Levels**: Trace, Debug, Info, Warning, Error, Critical, Test
 - **Color-Coded Output**: ANSI color codes for easy visual distinction of log levels
 - **Thread-Safe**: Uses FreeRTOS semaphores for safe logging from multiple tasks
 - **Buffered Logging**: Uses FreeRTOS stream buffers for non-blocking log operations
-- **Multiple Sinks**: Support for different output destinations (Serial, and extensible for others)
+- **Multiple Sinks**: Support for different output destinations (Serial, and runtime-registered custom sinks)
 - **Binary Buffer Dump**: Utility for dumping binary data in hex format
 - **Compile-Time Configuration**: Customize default log level via defines
 
@@ -33,7 +41,7 @@ For a specific version or branch:
 
 ```ini
 lib_deps =
-    https://github.com/zmeiresearch/zLogger.git#v1.0.0
+    https://github.com/zmeiresearch/zLogger.git#v1.1.0
 ```
 
 ## Usage
@@ -226,7 +234,22 @@ With colors enabled (default), each log level has a distinct color:
 eStatus LogInit(void * params);
 ```
 
-Initializes the logger subsystem. Call once during setup.
+Initializes the logger subsystem. Pass `NULL` or a `LogInitParams *` to register sinks at startup.
+
+```c
+typedef struct _LogInitParams {
+    const LogSink * Sinks;
+    size_t SinkCount;
+} LogInitParams;
+```
+
+### Register Sink
+
+```c
+eStatus LogRegisterSink(const LogSink * sink);
+```
+
+Registers a sink before or after `LogInit()`. Sink registration is not thread-safe.
 
 ### Task Function
 
@@ -290,22 +313,31 @@ const char * LogPortTimeGetString() {
 
 ## Advanced: Adding Custom Log Sinks
 
-You can extend the logger to write to additional destinations (files, network, displays, etc.).
+You can extend the logger to write to additional destinations (files, network, displays, etc.) by registering sinks at runtime or during `LogInit()`.
 
-1. Implement the three required functions:
 ```c
-eStatus MyCustomSinkInit(void);
-size_t MyCustomSinkGetWriteSize(void);
-size_t MyCustomSinkWrite(const uint8_t * buffer, size_t toSend);
-```
+static eStatus MyCustomSinkInit(void * context);
+static size_t MyCustomSinkGetWriteSize(void * context);
+static size_t MyCustomSinkWrite(void * context, const uint8_t * buffer, size_t toSend);
 
-2. Add your sink to the `sinks` array in `logger.cpp`:
-```c
-static const LogSink sinks[] = {
-    { "Serial", LogSinkSerialInit, LogSinkSerialGetWriteSize, LogSinkSerialWrite },
-    { "Custom", MyCustomSinkInit, MyCustomSinkGetWriteSize, MyCustomSinkWrite },
+static const LogSink MyCustomSink = {
+    "Custom",
+    MyCustomSinkInit,
+    MyCustomSinkGetWriteSize,
+    MyCustomSinkWrite,
+    NULL
 };
+
+void setup() {
+    static const LogSink sinks[] = { MyCustomSink };
+    static LogInitParams initParams = { sinks, 1 };
+    LogInit(&initParams);
+}
 ```
+
+**Notes:**
+- The sink registry has a fixed capacity controlled by `LOG_MAX_SINKS` (default: 4).
+- Sink registration is not thread-safe; serialize calls from your application.
 
 ## Configuration Options
 

@@ -53,20 +53,22 @@
 //  Exported functions
 //==============================================================================
 
-size_t LogSinkSerialGetWriteSize()
+size_t LogSinkSerialGetWriteSize(void * context)
 {
-
+    (void)context;
     return 256; // TODO: arbitrary
 }
 
-size_t LogSinkSerialWrite(const uint8_t * const buffer, const size_t toSend)
+size_t LogSinkSerialWrite(void * context, const uint8_t * const buffer, const size_t toSend)
 {
+    (void)context;
     Serial.write(buffer, toSend);
     return toSend;
 }
 
-eStatus LogSinkSerialInit()
+eStatus LogSinkSerialInit(void * context)
 {
+    (void)context;
     Serial.begin(115200);
     return eOK;
 }

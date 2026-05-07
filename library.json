@@ -1,6 +1,6 @@
 {
   "name": "zLogger",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Flexible logging library for ESP32 with FreeRTOS support and multiple log sinks",
   "keywords": ["logging", "esp32", "freertos", "embedded", "serial", "debug"],
   "repository": {

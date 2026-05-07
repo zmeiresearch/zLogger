@@ -50,6 +50,10 @@ extern "C"
 #endif // DEBUG
 #endif // LOG_LEVEL_DEFAULT
 
+#ifndef LOG_MAX_SINKS
+#define LOG_MAX_SINKS               4
+#endif // LOG_MAX_SINKS
+
 #define LOG(level, ...)             Log((level), CMP_NAME, __func__, __VA_ARGS__)
 #define LOG_DUMP_BUFFER(level, ...) LogDumpBuffer((level), CMP_NAME, __func__, __VA_ARGS__)
 
@@ -71,9 +75,9 @@ typedef enum _eLogLevel
 
 // Function pointers to different log sinks. Would've been cleaner with an
 // interface, but I want to keep it as C as possible
-typedef eStatus (*LogSinkInitFn)(void);
-typedef size_t  (*LogSinkGetWriteSizeFn)(void);
-typedef size_t  (*LogSinkWriteFn)(const uint8_t * const buffer, const size_t toSend);
+typedef eStatus (*LogSinkInitFn)(void * context);
+typedef size_t  (*LogSinkGetWriteSizeFn)(void * context);
+typedef size_t  (*LogSinkWriteFn)(void * context, const uint8_t * const buffer, const size_t toSend);
 
 typedef struct _LogSink
 {
@@ -81,7 +85,14 @@ typedef struct _LogSink
     LogSinkInitFn           Init;
     LogSinkGetWriteSizeFn   GetWriteSize;
     LogSinkWriteFn          Write;
+    void *                  Context;
 } LogSink;
+
+typedef struct _LogInitParams
+{
+    const LogSink *         Sinks;
+    size_t                  SinkCount;
+} LogInitParams;
 
 //==============================================================================
 //  Exported data
@@ -93,12 +104,14 @@ typedef struct _LogSink
 eStatus Log(const eLogLevel level, const char * const component, const char * const function, ...);
 eStatus LogSetLevel(const eLogLevel level);
 eStatus LogDumpBuffer(const eLogLevel level, const char * const component, const char * const function, const uint8_t * const buffer, size_t buffer_size);
+// Registration is not thread-safe; the caller must serialize sink changes.
+eStatus LogRegisterSink(const LogSink * const sink);
 const char * LogPortTimeGetString();    // logger_port contains a __weak implementation, user can override
 
 //==============================================================================
 //  Module generic interface
 //==============================================================================
-eStatus LogInit(void * params);
+eStatus LogInit(void * params); // params may point to LogInitParams
 eStatus LogTask(void);
 
 #ifdef __cplusplus
