@@ -16,6 +16,9 @@
 // Uncomment to enable custom time string
 // #define USE_CUSTOM_TIME
 
+// Uncomment to demonstrate custom sink registration
+// #define USE_CUSTOM_SINK
+
 //==============================================================================
 // Optional: Override LogPortTimeGetString for custom time formatting
 //==============================================================================
@@ -30,6 +33,41 @@ const char * LogPortTimeGetString() {
              hours % 24, minutes % 60, seconds % 60);
     return timeBuffer;
 }
+#endif
+
+#ifdef USE_CUSTOM_SINK
+static eStatus ExampleSinkInit(void * context) {
+    (void)context;
+    return eOK;
+}
+
+static size_t ExampleSinkGetWriteSize(void * context) {
+    (void)context;
+    return 64;
+}
+
+static size_t ExampleSinkWrite(void * context, const uint8_t * buffer, size_t toSend) {
+    (void)context;
+    (void)buffer;
+    return toSend;
+}
+
+static const LogSink ExampleSink = {
+    "Example",
+    ExampleSinkInit,
+    ExampleSinkGetWriteSize,
+    ExampleSinkWrite,
+    NULL
+};
+
+static const LogSink ExampleSinks[] = {
+    ExampleSink,
+};
+
+static LogInitParams ExampleInitParams = {
+    ExampleSinks,
+    sizeof(ExampleSinks) / sizeof(ExampleSinks[0])
+};
 #endif
 
 //==============================================================================
@@ -75,7 +113,11 @@ void setup() {
     delay(1000);
 
     // Initialize the logger
+#ifdef USE_CUSTOM_SINK
+    eStatus status = LogInit(&ExampleInitParams);
+#else
     eStatus status = LogInit(NULL);
+#endif
     if (status != eOK) {
         Serial.println("Failed to initialize logger!");
         return;

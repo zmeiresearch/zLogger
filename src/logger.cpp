@@ -27,6 +27,7 @@
 //==============================================================================
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 
 #include "logger.h"
 #include "logger_port.h"
@@ -73,9 +74,21 @@ static bool                 initialized = false;
 
 static StreamBufferHandle_t logBuffer = NULL;
 
-// Log sinks
-static const LogSink sinks[] = {
-    { "Serial", LogSinkSerialInit, LogSinkSerialGetWriteSize, LogSinkSerialWrite },
+typedef struct _LogSinkEntry
+{
+    LogSink sink;
+    bool    initialized;
+} LogSinkEntry;
+
+static LogSinkEntry         sinkRegistry[LOG_MAX_SINKS] = { 0 };
+static size_t               sinkRegistryCount = 0;
+
+static const LogSink        serialSink = {
+    "Serial",
+    LogSinkSerialInit,
+    LogSinkSerialGetWriteSize,
+    LogSinkSerialWrite,
+    NULL
 };
 
 #if defined(LOG_USE_COLOR)
@@ -97,12 +110,16 @@ static const char * colorEscapeSequences[] = {
 static size_t getSinksSmallestWriteSize()
 {
     size_t writeSize = 0xffffffff;
-    for (size_t i = 0; i < ARRAY_SIZE(sinks); i++)
+
+    for (size_t i = 0; i < sinkRegistryCount; i++)
     {
-        size_t tmp = sinks[i].GetWriteSize();
-        if (tmp < writeSize)
+        if (sinkRegistry[i].initialized)
         {
-            writeSize = tmp;
+            size_t tmp = sinkRegistry[i].sink.GetWriteSize(sinkRegistry[i].sink.Context);
+            if (tmp < writeSize)
+            {
+                writeSize = tmp;
+            }
         }
     }
     return writeSize;
@@ -112,16 +129,51 @@ static size_t sinksWrite(const uint8_t * const buffer, const size_t toSend)
 {
     size_t written = toSend;
 
-    for (size_t i = 0; i < ARRAY_SIZE(sinks); i++)
+    for (size_t i = 0; i < sinkRegistryCount; i++)
     {
-        size_t tmp = sinks[i].Write(buffer, toSend);
-        if (tmp != written)
+        if (sinkRegistry[i].initialized)
         {
-            Log(eLogWarn, CMP_NAME, "Failure writing to sink %s: tried to write: %d, written: %d",
-                    sinks[i].Name, toSend, tmp);
+            size_t tmp = sinkRegistry[i].sink.Write(sinkRegistry[i].sink.Context, buffer, toSend);
+            if (tmp != written)
+            {
+                Log(eLogWarn, CMP_NAME, "Failure writing to sink %s: tried to write: %d, written: %d",
+                        sinkRegistry[i].sink.Name, toSend, tmp);
+            }
         }
     }
     return written;
+}
+
+static eStatus appendSink(const LogSink * const sink, const bool initializeNow)
+{
+    eStatus retVal = eOK;
+
+    if ((NULL == sink) || (NULL == sink->Name) || (NULL == sink->Init) || (NULL == sink->GetWriteSize) || (NULL == sink->Write))
+    {
+        return eINVALIDARG;
+    }
+
+    if (sinkRegistryCount >= LOG_MAX_SINKS)
+    {
+        return eFAILED;
+    }
+
+    const size_t index = sinkRegistryCount;
+    sinkRegistry[index] = (LogSinkEntry){ 0 };
+    sinkRegistry[index].sink = *sink;
+    sinkRegistry[index].initialized = false;
+    sinkRegistryCount++;
+
+    if (initializeNow)
+    {
+        retVal = sinkRegistry[index].sink.Init(sinkRegistry[index].sink.Context);
+        if (eOK == retVal)
+        {
+            sinkRegistry[index].initialized = true;
+        }    
+    }
+
+    return retVal;
 }
 
 
@@ -304,12 +356,16 @@ eStatus LogDumpBuffer(const eLogLevel level, const char * const component, const
     return retVal;
 }
 
+eStatus LogRegisterSink(const LogSink * const sink)
+{
+    return appendSink(sink, initialized);
+}
+
 eStatus LogInit(void * params)
 {
     eStatus retVal = eOK;
     bool oneSinkOk = false;
-
-    (void)params;
+    const LogInitParams * initParams = (const LogInitParams *)params;
 
     currentLevel = LOG_LEVEL_DEFAULT;   // default log level
 
@@ -317,20 +373,31 @@ eStatus LogInit(void * params)
 
     if (eOK == retVal)
     {
-        for (size_t i = 0; i < ARRAY_SIZE(sinks); i++)
-        {
-            retVal = sinks[i].Init();
-            if (eOK == retVal)
+        (void)appendSink(&serialSink, false);
+
+        if (initParams != NULL)
+        { 
+            for (size_t i = 0; (eOK == retVal) && (i < initParams->SinkCount); i++)
             {
-                oneSinkOk = true;
-            }
-            else
-            {
-                Log(eLogWarn, CMP_NAME, "LogInit: Error initializing %s sink", sinks[i].Name);
+                retVal = appendSink(&(initParams->Sinks[i]), false);
             }
         }
 
-        retVal = (oneSinkOk) ? eOK : eFAILED;
+        for (size_t i = 0 ; i < sinkRegistryCount; i++)
+        {
+            // Initialize all sinks
+            eStatus initStatus = sinkRegistry[i].sink.Init(sinkRegistry[i].sink.Context);
+            if (eOK == initStatus)
+            {
+                sinkRegistry[i].initialized = true;
+                oneSinkOk = true;
+            }
+        }
+
+        if (!oneSinkOk)
+        {
+            retVal = eFAILED;
+        }
     }
 
 #if (configSUPPORT_STATIC_ALLOCATION == 1)

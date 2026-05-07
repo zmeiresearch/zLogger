@@ -52,17 +52,17 @@ static char                 timeBuffer[32];
 //  Exported functions
 //==============================================================================
 
-bool LogPortLock(size_t waitTime)
+__attribute__ ((weak)) bool LogPortLock(size_t waitTime)
 {
     return ((xSemaphoreTake(LogSemaphore, waitTime / portTICK_PERIOD_MS) == pdTRUE) ? true : false);
 }
 
-void LogPortUnlock()
+__attribute__ ((weak)) void LogPortUnlock()
 {
     xSemaphoreGive(LogSemaphore);
 }
 
-eStatus LogPortInit()
+__attribute__ ((weak)) eStatus LogPortInit()
 {
     eStatus retVal = eOK;
 
@@ -76,7 +76,7 @@ eStatus LogPortInit()
     return retVal;
 }
 
-const char * LogPortGetTime()
+__attribute__ ((weak)) const char * LogPortGetTime()
 {
     snprintf((char *)timeBuffer, sizeof(timeBuffer), "%09d", PortGetTime());
     return timeBuffer;
